@@ -14,16 +14,8 @@ public class Vehicle {
         yPos += deltaY;
     }
 
-    public void correlate(Map map, int frameSize) {
-        int[][] frame = map.getFrame(xPos, yPos, frameSize);
-        int[][] nextFrame;
-        // todo jeszcze jedna pętla for dla np. 4 kierunków - może enum?
-        for (int i = 0; i < frameSize; i++) {
-            for (int j = 0; j < frameSize; j++) {
+    // todo zrobić ramkę jako osobną klasę???
 
-            }
-        }
-    }
 
     public int getXPos() {
         return xPos;

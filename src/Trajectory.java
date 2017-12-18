@@ -1,18 +1,18 @@
 public class Trajectory {
     private int[][] trajectory;
-    private int stepsCount;
     private double probOneStep;
     private double probTwoSteps;
     private double probThreeSteps;
     private Point pointer;
+    private MapFrame[] mapFrames;
 
     Trajectory(Map map, int steps, Point startPoint, int frameReach, double prob1, double prob2, double prob3) {
         this.trajectory = new int[steps][2]; // "steps" rows of [x, y]
 
         // set default values
-        this.probOneStep = prob1;
-        this.probTwoSteps = prob2;
-        this.probThreeSteps = prob3;
+        this.probOneStep = Math.abs(prob1); // absolute value in case negative probability were provided
+        this.probTwoSteps = Math.abs(prob2);
+        this.probThreeSteps = Math.abs(prob3);
         // normalize if the user has provided probabilities that do not add up to 1
         if (this.probOneStep + this.probTwoSteps + this.probThreeSteps != 1) {
             prob1 /= this.probOneStep + this.probTwoSteps + this.probThreeSteps;
@@ -21,9 +21,11 @@ public class Trajectory {
         }
         // todo what if the user provides a negative probability?
 
+        this.mapFrames = new MapFrame[steps];
         // set first value in trajectory array
         trajectory[0][0] = startPoint.getX();
         trajectory[0][1] = startPoint.getY();
+        mapFrames[0] = new MapFrame(map, startPoint.getX(), startPoint.getY(), frameReach);
 
         // create a pointer that we will move around
         pointer = new Point(startPoint.getX(), startPoint.getY());
@@ -50,6 +52,7 @@ public class Trajectory {
                 initialDir.setDir(dir.getDir());
                 trajectory[i][0] = pointer.getX();
                 trajectory[i][1] = pointer.getY();
+                mapFrames[i] = new MapFrame(map, pointer.getX(), pointer.getY(), frameReach);
             //}
         }
 
@@ -66,6 +69,13 @@ public class Trajectory {
         this(map, steps, startPoint, 0);
     }
 
+    public int[][] getTrajectory() {
+        return trajectory;
+    }
+
+    public MapFrame[] getMapFrames() {
+        return mapFrames;
+    }
 
     private class DirVector {
         Direction dir;
@@ -79,11 +89,18 @@ public class Trajectory {
         }
 
         public Direction oppositeDir(Direction dir) {
-            if (dir == Direction.NORTH) return Direction.SOUTH;
-            if (dir == Direction.SOUTH) return Direction.NORTH;
-            if (dir == Direction.EAST) return Direction.WEST;
-            if (dir == Direction.WEST) return Direction.EAST;
-            else return null;
+            switch (dir) {
+                case NORTH:
+                    return Direction.SOUTH;
+                case EAST:
+                    return Direction.WEST;
+                case SOUTH:
+                    return Direction.NORTH;
+                case WEST:
+                    return Direction.EAST;
+                default:
+                    return null;
+            }
         }
 
         public Direction chooseDir() {
