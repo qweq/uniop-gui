@@ -1,6 +1,17 @@
+/* TODO as the vehicle turns, so should the frames
+   TODO navigator should then try and turn each frame left and right to see if it fits better
+
+   TODO perhaps make a low-contrast (practically already implemented) and high-contrast low-level-count map
+
+   TODO improve the visualisation
+
+   TODO allow the user to choose frame size (remember that the size should be odd-numbered)
+
+   TODO ideas:
+   TODO     - a slider that highlights the current step + a pane to show the frame
+ */
+
 import javafx.application.*;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.geometry.*;
 import javafx.scene.*;
 import javafx.scene.canvas.*;
@@ -34,7 +45,7 @@ public class Main extends Application {
     private static final int DEFAULT_FRAME_SIZE = 7;
     // trajectory properties
     private static final int DEFAULT_STEPS_NUMBER = 158;
-    private static final double DEFAULT_DIR_CHANGE_PROBABILITY = 0.2;
+    private static final double DEFAULT_DIR_CHANGE_PROBABILITY = 0.08;
     private static final double[] DEFAULT_VELOCITY_CHANGE_PROBABILITY = {0.7, 0.2, 0.05, 0.05};
     // max tries (for exception handling)
     private static final int MAX_TRIES = 10;
@@ -138,19 +149,21 @@ public class Main extends Application {
         TextField mapYtf = new TextField();
         mapXtf.setPromptText("Width");
         mapYtf.setPromptText("Height");
-        GridPane.setConstraints(mapDimensionsLbl, 0, 0);
-        GridPane.setConstraints(mapXtf, 1, 0);
-        GridPane.setConstraints(mapYtf, 2, 0);
+        GridPane.setConstraints(mapDimensionsLbl, 0, rowCounter);
+        GridPane.setConstraints(mapXtf, 1, rowCounter);
+        GridPane.setConstraints(mapYtf, 2, rowCounter);
         optionNode.getChildren().addAll(mapDimensionsLbl, mapXtf, mapYtf);
+        rowCounter++;
 
         // intensity levels
         Label mapIntensityLbl = new Label("Intensity levels:");
         Slider mapIntensitySlider = new Slider(2, 256, 256);
         mapIntensitySlider.setShowTickLabels(true);
         mapIntensitySlider.setShowTickMarks(true);
-        GridPane.setConstraints(mapIntensityLbl, 0, 1);
-        GridPane.setConstraints(mapIntensitySlider, 1, 1, 2, 1);
+        GridPane.setConstraints(mapIntensityLbl, 0, rowCounter);
+        GridPane.setConstraints(mapIntensitySlider, 1, rowCounter, 2, 1);
         optionNode.getChildren().addAll(mapIntensityLbl, mapIntensitySlider);
+        rowCounter++;
 
         // generate map button
         Button generateMapBtn = new Button("Generate a new map");
@@ -169,12 +182,24 @@ public class Main extends Application {
             });
             t.run();
         });
-        GridPane.setConstraints(generateMapBtn, 0, 2, 3, 1);
-        optionNode.getChildren().add(generateMapBtn);
+        GridPane.setConstraints(generateMapBtn, 0, rowCounter);
+
+        // default values button
+        Button mapDefaultValuesBtn = new Button("Default values");
+        mapDefaultValuesBtn.setOnAction(event -> {
+            mapXtf.setText(String.valueOf(DEFAULT_MAP_XDIM));
+            mapYtf.setText(String.valueOf(DEFAULT_MAP_YDIM));
+            mapIntensitySlider.setValue(DEFAULT_MAP_MAX_INTENSITY_LEVEL+1); // +1 due to zero-indexing
+        });
+        GridPane.setConstraints(mapDefaultValuesBtn, 1, rowCounter);
+
+        optionNode.getChildren().addAll(generateMapBtn, mapDefaultValuesBtn);
+        rowCounter++;
 
         Separator mapTrajectorySeparator = new Separator();
         optionNode.getChildren().add(mapTrajectorySeparator);
-        GridPane.setConstraints(mapTrajectorySeparator, 0, 3, 3, 1);
+        GridPane.setConstraints(mapTrajectorySeparator, 0, rowCounter, 3, 1);
+        rowCounter++;
 
         // trajectory properties
         Label startPointLbl = new Label("Start point:");
@@ -188,17 +213,24 @@ public class Main extends Application {
         Label dirChangeProbLbl = new Label("Probability of a change\nof the direction:");
         TextField dirChangeProbTF = new TextField();
         Label velChangeProbLbl = new Label("Probability of a change\nof the velocity:");
+        // todo ####################################
         TextField velChangeProbTF = new TextField();
-        velChangeProbTF.setEditable(false); // todo
-        GridPane.setConstraints(startPointLbl, 0, 4);
-        GridPane.setConstraints(startPointXtf, 1, 4);
-        GridPane.setConstraints(startPointYtf, 2, 4);
-        GridPane.setConstraints(stepsNumberLbl, 0, 5);
-        GridPane.setConstraints(stepsNumberTF, 1, 5);
-        GridPane.setConstraints(dirChangeProbLbl, 0, 6);
-        GridPane.setConstraints(dirChangeProbTF, 1, 6);
-        GridPane.setConstraints(velChangeProbLbl, 0, 7);
-        GridPane.setConstraints(velChangeProbTF, 1, 7);
+        velChangeProbTF.setPromptText("TBD");
+        velChangeProbTF.setEditable(false);
+        // todo ####################################
+        GridPane.setConstraints(startPointLbl, 0, rowCounter);
+        GridPane.setConstraints(startPointXtf, 1, rowCounter);
+        GridPane.setConstraints(startPointYtf, 2, rowCounter);
+        rowCounter++;
+        GridPane.setConstraints(stepsNumberLbl, 0, rowCounter);
+        GridPane.setConstraints(stepsNumberTF, 1, rowCounter);
+        rowCounter++;
+        GridPane.setConstraints(dirChangeProbLbl, 0, rowCounter);
+        GridPane.setConstraints(dirChangeProbTF, 1, rowCounter);
+        rowCounter++;
+        GridPane.setConstraints(velChangeProbLbl, 0, rowCounter);
+        GridPane.setConstraints(velChangeProbTF, 1, rowCounter);
+        rowCounter++;
         optionNode.getChildren().addAll(startPointLbl, startPointXtf, startPointYtf,
                 stepsNumberLbl, stepsNumberTF, dirChangeProbLbl, dirChangeProbTF,
                 velChangeProbLbl, velChangeProbTF);
@@ -206,16 +238,15 @@ public class Main extends Application {
         // generate trajectory button
         Button generateTrajectoryBtn = new Button("Generate a new trajectory");
         generateTrajectoryBtn.setOnAction(event -> {
-            int exceptionCounter = 0;
             try {
                 // todo frame, vector
-                Point newTrajectoryStartPoint = new Point(Integer.parseInt(startPointXtf.getText()), Integer.parseInt(startPointYtf.getText()));
-                tb = new TrajectoryBuilder(map, Integer.parseInt(stepsNumberTF.getText()), newTrajectoryStartPoint,
+                point = new Point(Integer.parseInt(startPointXtf.getText()), Integer.parseInt(startPointYtf.getText()));
+                tb = new TrajectoryBuilder(map, Integer.parseInt(stepsNumberTF.getText()), point,
                         vector, frame, Double.parseDouble(dirChangeProbTF.getText()), DEFAULT_VELOCITY_CHANGE_PROBABILITY);
                 paintMap(map, gc);
                 paintTrajectory(tb.getOutputTrajectory(), gc, Color.RED);
-                sp.setHvalue((double)newTrajectoryStartPoint.getX()/(double)map.getXDim());
-                sp.setVvalue((double)newTrajectoryStartPoint.getY()/(double)map.getYDim());
+                sp.setHvalue((double)point.getX()/(double)map.getXDim());
+                sp.setVvalue((double)point.getY()/(double)map.getYDim());
             } catch (NumberFormatException e) {
                 // todo find out a way to know which textfield input throws the exception, then set focus on it
                 Alert alert = new Alert(Alert.AlertType.ERROR, "Wrong input");
@@ -228,28 +259,53 @@ public class Main extends Application {
                 alert.showAndWait();
             }
         }); // todo
-        GridPane.setConstraints(generateTrajectoryBtn, 0, 8, 3, 1);
-        optionNode.getChildren().add(generateTrajectoryBtn);
+        GridPane.setConstraints(generateTrajectoryBtn, 0, rowCounter);
+
+        // trajectory default values button
+        Button trajectoryDefaultValuesBtn = new Button("Default values");
+        trajectoryDefaultValuesBtn.setOnAction(event -> {
+            startPointXtf.setText(String.valueOf(DEFAULT_START_POINT_X));
+            startPointYtf.setText(String.valueOf(DEFAULT_START_POINT_Y));
+            stepsNumberTF.setText(String.valueOf(DEFAULT_STEPS_NUMBER));
+            dirChangeProbTF.setText(String.valueOf(DEFAULT_DIR_CHANGE_PROBABILITY));
+        });
+        GridPane.setConstraints(trajectoryDefaultValuesBtn, 1, rowCounter);
+
+        optionNode.getChildren().addAll(generateTrajectoryBtn, trajectoryDefaultValuesBtn);
+        rowCounter++;
 
         Separator trajectoryNavigatorSeparator = new Separator();
-        GridPane.setConstraints(trajectoryNavigatorSeparator, 0, 9, 3, 1);
+        GridPane.setConstraints(trajectoryNavigatorSeparator, 0, rowCounter, 3, 1);
         optionNode.getChildren().add(trajectoryNavigatorSeparator);
+        rowCounter++;
 
         // navigator properties
         Label maxPotentialVelocityLbl = new Label("Maximal potential velocity:");
         TextField maxPotentialVelocityTF = new TextField();
+        // navigator button
         Button navigateBtn = new Button("Navigate");
-        GridPane.setConstraints(maxPotentialVelocityLbl, 0, 10);
-        GridPane.setConstraints(maxPotentialVelocityTF, 1, 10);
-        GridPane.setConstraints(navigateBtn, 0, 11, 3, 1);
+        navigateBtn.setOnAction(event -> {
+            navigator = new Navigator(map, tb.getOutputTrajectory().getMapFrameArrayList(), point, Integer.parseInt(maxPotentialVelocityTF.getText()));
+            paintTrajectory(navigator.getResultTrajectory(), gc, Color.GREEN);
+        });
+        GridPane.setConstraints(maxPotentialVelocityLbl, 0, rowCounter);
+        GridPane.setConstraints(maxPotentialVelocityTF, 1, rowCounter);
+        rowCounter++;
+        GridPane.setConstraints(navigateBtn, 0, rowCounter, 3, 1);
         optionNode.getChildren().addAll(maxPotentialVelocityLbl, maxPotentialVelocityTF, navigateBtn);
+        rowCounter++;
 
+        Separator navigatorResultSeparator = new Separator();
+        GridPane.setConstraints(navigatorResultSeparator, 0, rowCounter, 3, 1);
+        optionNode.getChildren().add(navigatorResultSeparator);
+        rowCounter++;
 
+        /*
         // debug
         Label xLbl = new Label("scrollPane hValue = " + String.valueOf(sp.getHvalue()));
         Label yLbl = new Label("scrollPane vValue = " + String.valueOf(sp.getVvalue()));
-        GridPane.setConstraints(xLbl, 1, 12);
-        GridPane.setConstraints(yLbl, 2, 12);
+        GridPane.setConstraints(xLbl, 1, rowCounter);
+        GridPane.setConstraints(yLbl, 2, rowCounter);
         optionNode.getChildren().addAll(xLbl, yLbl);
         sp.hvalueProperty().addListener((observable, oldValue, newValue) -> {
             xLbl.setText("scrollPane hValue = " + String.valueOf(newValue));
@@ -257,7 +313,9 @@ public class Main extends Application {
         sp.vvalueProperty().addListener((observable, oldValue, newValue) -> {
             yLbl.setText("scrollPane vValue = " + String.valueOf(newValue));
         });
+        rowCounter++;
         // end debug
+        */
 
         stage.show();
     }
