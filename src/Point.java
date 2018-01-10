@@ -1,5 +1,3 @@
-import java.util.InvalidPropertiesFormatException;
-
 public class Point {
     private int x;
     private int y;
@@ -9,49 +7,77 @@ public class Point {
         this.y = y;
     }
 
+    Point(Point p) {
+        this(p.getX(), p.getY());
+    }
+
+    public void setXY(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+
     public void move(int deltaX, int deltaY) {
         x += deltaX;
         y += deltaY;
     }
 
-    public void move(Direction dir) {
-        switch (dir) {
+    public void move(DirVector vector) {
+        switch (vector.getDir()) {
             case NORTH:
-                x += 0;
-                y += 1;
+                move(0, (-1)*vector.getValue());
                 break;
             case EAST:
-                x += 1;
-                y += 0;
+                move(vector.getValue(), 0);
                 break;
             case SOUTH:
-                x += 0;
-                y -= 1;
+                move(0, vector.getValue());
                 break;
             case WEST:
-                x -= 1;
-                y += 0;
+                move((-1)*vector.getValue(), 0);
                 break;
         }
     }
 
-    public void move(Direction dir, int delta) {
-        for (int i = 0; i < delta; i++) move(dir);
-    }
-
-    public boolean canMove(Map map, Direction dir, int frameReach) {
+    public boolean canMove(Map map, DirVector vector, MapFrame frame) {
         Point bufferPoint = new Point(this.x, this.y);  // create a "buffer" point to be able to
-        bufferPoint.move(dir);                          // move it and check whether it's out of bounds afterwards
-
+        bufferPoint.move(vector);                       // move it and check whether it's out of bounds afterwards
+        int frameSpan = frame.getSpan();
         // check if the buffer Point's coordinates after the movement do not exceed map's dimensions
-        // if there's a frame, include the frame's span as well
-        if (bufferPoint.getX()+frameReach > map.getXDim() || bufferPoint.getX()-frameReach < 0
-                || bufferPoint.getY()+frameReach > map.getYDim() || bufferPoint.getY()-frameReach < 0) {
-            // todo check if > or >=; check frameReach signs
+        if (frame == null) frameSpan = 0;
+        if (bufferPoint.getX() + frameSpan > map.getXDim()
+                || bufferPoint.getX() - frameSpan < 0
+                || bufferPoint.getY() + frameSpan > map.getYDim()
+                || bufferPoint.getY() - frameSpan < 0) {
             return false;
         }
         return true;
     }
+
+    public boolean isInMapBounds(Map map) {
+        if (this.x > map.getXDim()
+                || this.y > map.getYDim()
+                || this.x < 0
+                || this.y < 0) return false;
+        else return true;
+    }
+
+    public boolean canMove(Map map, DirVector vector) { // likely to be unused
+        return this.canMove(map, vector, null);
+    }
+
+    public int getX() {
+        return x;
+    }
+
+    public int getY() {
+        return y;
+    }
+
+    @Override
+    public String toString() {
+        return "x = " + x + ", y = " + y;
+    }
+}    /*
 
     public boolean canMove(Map map, Direction dir) {
         return this.canMove(map, dir, 0);
@@ -95,8 +121,9 @@ public class Point {
         //System.out.println("Direction is " + maxLSMDir);
         return maxLSMDir;
     }*/
+/*
 
-    // todo this should return Trajectory probably...
+    // todo this should return TrajectoryBuilder probably...
     public Direction[] correlate(Map map, MapFrame[] frames, int initX, int initY, int frameSize) {
         MapFrame currentFrame = frames[0];
         MapFrame potentialFrame;
@@ -140,28 +167,4 @@ public class Point {
 
         return returnArray;
     }
-
-    public int getX() {
-        return x;
-    }
-
-    public void setX(int x) {
-        this.x = x;
-    }
-
-    public int getY() {
-        return y;
-    }
-
-    public void setY(int y) {
-        this.y = y;
-    }
-
-    @Override
-    public String toString() {
-        return "Point{" +
-                "x=" + x +
-                ", y=" + y +
-                '}';
-    }
-}
+*/
