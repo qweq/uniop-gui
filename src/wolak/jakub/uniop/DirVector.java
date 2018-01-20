@@ -1,3 +1,5 @@
+package wolak.jakub.uniop;
+
 public class DirVector {
     Direction dir;
     int value;
@@ -74,6 +76,15 @@ public class DirVector {
 
     public void setValue(int value) {
         this.value = value;
+    }
+
+    // this method returns the number of clockwise turns necessary to align the "from" vector with the "to" vector
+    public static int howManyTurns(DirVector from, DirVector to) {
+        int diff = to.getDir().ordinal() - from.getDir().ordinal(); // the values in the Direction enum are sorted clockwise starting from North
+        if (diff < 0) {
+            diff += 4; // if the difference is negative, the necessary turn would be anticlockwise; add 4 turns for an equivalent clockwise turn
+            return diff;
+        } else return diff;
     }
 
     @Override

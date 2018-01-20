@@ -1,3 +1,5 @@
+package wolak.jakub.uniop;
+
 public class MapFrame {
     private int size;
     private int[][] frameArray;
@@ -11,10 +13,10 @@ public class MapFrame {
         final int yUp = yCenter - span;   // upper edge coord
 
         // todo handle frame out of bounds
-        for (int y = 0; y < size; y++) {
-            for (int x = 0; x < size; x++) {
+        for (int x = 0; x < size; x++) {
+            for (int y = 0; y < size; y++) {
                 try {
-                    this.frameArray[x][y] = map.cellValue(xLeft + y, yUp + x);
+                    this.frameArray[x][y] = map.cellValue(xLeft + x, yUp + y);
                 } catch (IndexOutOfBoundsException e) {
                     throw new IndexOutOfBoundsException("Dla podanych współrzędnych środka oraz szerokości, ramka wychodzi poza mapę");
                 }
@@ -38,6 +40,15 @@ public class MapFrame {
         return frameArray;
     }
 
+    public int cellValue(int x, int y) {
+        return frameArray[x][y];
+    }
+
+    public void setCellValue(int x, int y, int newVal) {
+        if (newVal > 255 || newVal < 0) throw new NumberFormatException();
+        frameArray[x][y] = newVal;
+    }
+
     public static double squaresDifference(MapFrame f1, MapFrame f2) {
         if (f1.getFrameArray().length != f2.getFrameArray().length) { // MapFrames are square by definition
             throw new IllegalArgumentException("Ramki muszą być tego samego rozmiaru");
@@ -45,14 +56,44 @@ public class MapFrame {
 
         double sum = 0;
 
-        for (int row = 0; row < f1.getFrameArray().length; row++) {
-            for (int col = 0; col < f1.getFrameArray()[row].length; col++) {
-                sum += f1.getFrameArray()[row][col]*f1.getFrameArray()[row][col] - f2.getFrameArray()[row][col]*f2.getFrameArray()[row][col];
+        for (int x = 0; x < f1.getFrameArray().length; x++) {
+            for (int y = 0; y < f1.getFrameArray()[x].length; y++) {
+                sum += f1.getFrameArray()[x][y]*f1.getFrameArray()[x][y] - f2.getFrameArray()[x][y]*f2.getFrameArray()[x][y];
             }
         }
 
         return sum;
     }
+
+    // turn the frame clockwise
+    public void turnClockwise(int times) {
+        if (times != 0) {
+            for (int i = 0; i < times; i++) {
+                int[][] bufferFrame = new int[size][size];
+                for (int x = 0; x < size; x++) {
+                    for (int y = 0; y < size; y++) {
+                        bufferFrame[(size - 1) - y][x] = frameArray[x][y]; // -1 due to zero-indexing
+                    }
+                }
+                this.frameArray = bufferFrame;
+            }
+        }
+    }
+
+    public void turnAnticlockwise(int times) {
+        if (times != 0) {
+            for (int i = 0; i < times; i++) {
+                int[][] bufferFrame = new int[size][size];
+                for (int x = 0; x < size; x++) {
+                    for (int y = 0; y < size; y++) {
+                        bufferFrame[y][(size - 1) - x] = frameArray[x][y]; // -1 due to zero-indexing
+                    }
+                }
+                this.frameArray = bufferFrame;
+            }
+        }
+    }
+
 
     @Override
     public String toString() {

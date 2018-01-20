@@ -1,3 +1,5 @@
+package wolak.jakub.uniop;
+
 public class TrajectoryBuilder {
     private Trajectory outputTrajectory;
 
@@ -42,7 +44,11 @@ public class TrajectoryBuilder {
             final int maxTries = 3; // that's why if the 3rd turn has not succeeded, we should break the loop (4th would be a 360* turn)
             for (int count = 0; count < maxTries; count++) {
                 if (currentPoint.canMove(map, currentVector, frame)) {
-                    outputTrajectory.add(new MapFrame(map, frame.getSize(), currentPoint));
+                    MapFrame frameToAdd = new MapFrame(map, frame.getSize(), currentPoint);
+                    // when the point turns, so should the frames; the map is oriented to the North by default
+                    // important: when the point (and the camera) turns clockwise, "the world" in relation turns anticlockwise
+                    frameToAdd.turnAnticlockwise(DirVector.howManyTurns(new DirVector(Direction.NORTH), currentVector));
+                    outputTrajectory.add(frameToAdd);
                     currentPoint.move(currentVector);
                     break; // if everything is okay, break the loop
                 } else {

@@ -1,20 +1,48 @@
+package wolak.jakub.uniop;
+
+import java.util.Random;
+
 public class Map {
     private int xDim;
     private int yDim;
     private int maxIntensityLevel;
     private int[][] mapArray;
 
-    Map(int xDim, int yDim, int maxIntensityLevel) {
+    Map(int xDim, int yDim, int maxIntensityLevel, int mode) {
         this.xDim = xDim;
         this.yDim = yDim;
         this.mapArray = new int[xDim][yDim];
         this.maxIntensityLevel = maxIntensityLevel;
+        Random rand = new Random();
+        double scalingCoefficient = 255.0/maxIntensityLevel; // todo perhaps a MAX_INTENSITY_LEVEL value instead of "256"?
 
-        for (int i = 0; i < xDim; i++) {
-            for (int j = 0; j < yDim; j++) {
-                mapArray[i][j] = (int) (Math.random() * (maxIntensityLevel + 1));
-            }
+        switch (mode) {
+            case 0: // todo modes -> "random" and "opensimplex"
+                for (int x = 0; x < xDim; x++) {
+                    for (int y = 0; y < yDim; y++) {
+                        mapArray[x][y] = (int)(scalingCoefficient * rand.nextInt(maxIntensityLevel));
+                    }
+                }
+                break;
+            case 1:
+                OpenSimplexNoise noise = new OpenSimplexNoise(rand.nextLong());
+                for (int x = 0; x < xDim; x++) {
+                    for (int y = 0; y < yDim; y++) {
+                        // since noise.eval returns a value between -1 and 1, we add +1 to that and divide by 2 to get (0;1)
+                        mapArray[x][y] = (int)(scalingCoefficient * (int)(maxIntensityLevel * (noise.eval(x, y)+1)/2));
+                    }
+                }
+                break;
         }
+
+    }
+
+    Map(int xDim, int yDim, int maxIntensityLevel) {
+        this(xDim, yDim, maxIntensityLevel, 0);
+    }
+
+    public enum Mode {
+        RANDOM, OPENSIMPLEX;
     }
 
     // no setters for dimensions since they have to be declared at the time of the array's creation
@@ -38,6 +66,7 @@ public class Map {
         this.maxIntensityLevel = maxIntensityLevel;
     }
 
+    // console version legacy code
     public String toStringWithTrajectory(Trajectory trajectory) {
         StringBuilder builder = new StringBuilder();
         for (int y = 0; y < xDim; y++) {
@@ -61,8 +90,8 @@ public class Map {
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder();
-        for (int y = 0; y < xDim; y++) {
-            for (int x = 0; x < yDim; x++) {
+        for (int x = 0; x < xDim; x++) {
+            for (int y = 0; y < yDim; y++) {
                 builder.append(mapArray[x][y] + "\t");
             }
             builder.append("\n");

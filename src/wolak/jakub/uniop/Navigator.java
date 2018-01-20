@@ -1,8 +1,11 @@
+package wolak.jakub.uniop;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class Navigator {
     private Trajectory outputTrajectory;
-    private int iterations = 0;
+    private ArrayList<Integer> iterations = new ArrayList<>();
 
     Navigator(Map map, List<MapFrame> frames, Point startPoint, int maxVelocity) {
         outputTrajectory = new Trajectory(frames.size());
@@ -13,6 +16,7 @@ public class Navigator {
         for (int step = 0; step < frames.size(); step++) {  // iterate every frame of the trajectory; this is ok as velocity iterates from 0
             // initialize values for each step
             minSqDiff = Integer.MAX_VALUE;
+            iterations.add(0);
 
             currentFrame:
             for (int vel = 0; vel <= maxVelocity; vel++) {   // try a range of velocities, including 0
@@ -23,6 +27,8 @@ public class Navigator {
                         DirVector bufferVector = new DirVector(Direction.values()[dir], vel);
                         bufferPoint.move(bufferVector);
                         MapFrame bufferFrame = new MapFrame(map, frames.get(step).getSize(), bufferPoint);
+                        // when the point turns, so do the frames taken by it
+                        bufferFrame.turnAnticlockwise(DirVector.howManyTurns(new DirVector(Direction.NORTH), bufferVector));
 
                         sqDiff = MapFrame.squaresDifference(frames.get(step), bufferFrame); // find the squares difference
                         if (Math.abs(sqDiff) < Math.abs(minSqDiff)) { // if it's smaller than the current minimum
@@ -33,10 +39,10 @@ public class Navigator {
                         }
                     } catch (IndexOutOfBoundsException e) { // this will be thrown if the currently compared buffer frame gets out of bounds
                         System.out.println(e + ". Przechodzę do kolejnej iteracji.");
-                        continue; // the algorithm will check another direction in the next iteration and it'll eventually find an in-bound best fit
+                        continue; // the algorithm will check another direction in the next iteration and it'll eventually find an in-bounds best fit
                     }
 
-                    iterations++;
+                    iterations.set(step, iterations.get(step)+1);
                     if (vel == 0) break; // no need to check more than one direction for zero velocity
                     if (sqDiff == 0.0) break currentFrame; // won't get better than that
                 }
@@ -54,6 +60,14 @@ public class Navigator {
         return outputTrajectory;
     }
 
+    public ArrayList<Integer> getIterations() {
+        return iterations;
+    }
+
+    public int getIterations(int step) {
+        return iterations.get(step);
+    }
+
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder();
@@ -61,7 +75,6 @@ public class Navigator {
         for (int i = 0; i < outputTrajectory.getCoordArrayList().size(); i++) {
             builder.append("[" + outputTrajectory.getCoordArrayList().get(i)[0] + ", " + outputTrajectory.getCoordArrayList().get(i)[1] + "]\n");
         }
-        builder.append("Iterations: " + iterations);
 
         return builder.toString();
     }

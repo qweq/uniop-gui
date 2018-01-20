@@ -1,3 +1,5 @@
+package wolak.jakub.uniop;
+
 import java.util.ArrayList;
 import java.util.List;
 
