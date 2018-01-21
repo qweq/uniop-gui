@@ -2,6 +2,7 @@ package wolak.jakub.uniop;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class Trajectory {
     private List<int[]> coordArrayList;
@@ -58,6 +59,30 @@ public class Trajectory {
 
     public List<MapFrame> getMapFrameArrayList() {
         return mapFrameArrayList;
+    }
+
+    public static List<MapFrame> addNoise(Trajectory trajectory, int level) {
+        if (level != 0) {
+            List<MapFrame> result = new ArrayList<>();
+            for (MapFrame frame : trajectory.getMapFrameArrayList()) {
+                //System.out.println(frame);
+                for (int x = 0; x < frame.getSize(); x++) {
+                    for (int y = 0; y < frame.getSize(); y++) {
+                        try {
+                            Random rand = new Random();
+                            MapFrame newFrame = new MapFrame(frame);
+                            int newVal = frame.cellValue(x, y) + rand.ints(1, (-1)*level, level).findFirst().getAsInt(); // the noise may be positive or negative
+                            newFrame.setCellValue(x, y, newVal);
+                            result.add(newFrame);
+                        } catch (NumberFormatException e) {
+                            continue; // if the value exceeds 0-255, just skip it
+                        }
+                    }
+                }
+                //System.out.println(frame + "\n");
+            }
+            return result;
+        } else return trajectory.getMapFrameArrayList(); // if level == 0 change nothing
     }
 
     @Override

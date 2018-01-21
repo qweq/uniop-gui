@@ -26,8 +26,8 @@ public class Main extends Application {
     private Navigator navigator;
 
     // fields regarding GUI
-    private int pixelSize = 4;
-    int framePixelSize = 12;
+    private final int pixelSize = 4;
+    private final int framePixelSize = 12;
 
     // GUI controls
     // main
@@ -72,6 +72,8 @@ public class Main extends Application {
     private TextField maxPotentialVelocityTF;
     private Label noiseLbl;
     private TextField noiseTF;
+    private Label navigatorAlgorithmLbl;
+    private ComboBox<String> navigatorAlgorithmCB;
     private Button navigateBtn;
     private Button navigatorDefaultValuesBtn;
     private Separator navigatorResultSeparator;
@@ -99,11 +101,13 @@ public class Main extends Application {
     private static final int DEFAULT_START_POINT_X = 100;
     private static final int DEFAULT_START_POINT_Y = 100;
     // frame size
-    private static final int DEFAULT_FRAME_SIZE = 7;
+    private static final int DEFAULT_FRAME_SIZE = 5;
     // trajectory properties
     private static final int DEFAULT_STEPS_NUMBER = 150;
     private static final double DEFAULT_DIR_CHANGE_PROBABILITY = 0.08;
     private static final double[] DEFAULT_VELOCITY_CHANGE_PROBABILITY = {0.7, 0.2, 0.05, 0.05};
+    private static final int DEFAULT_MAX_VELOCITY = 4;
+    private static final DiffAlgorithm DEFAULT_ALGORITHM = DiffAlgorithm.SQ_DIFF;
     // max tries (for exception handling)
     private static final int MAX_TRIES = 10;
     // colors
@@ -126,10 +130,9 @@ public class Main extends Application {
             frame = new MapFrame(map, DEFAULT_FRAME_SIZE, point);
             vector = new DirVector();
             tb = new TrajectoryBuilder(map, DEFAULT_STEPS_NUMBER, point, vector, frame, DEFAULT_DIR_CHANGE_PROBABILITY, DEFAULT_VELOCITY_CHANGE_PROBABILITY);
-            navigator = new Navigator(map, tb.getOutputTrajectory().getMapFrameArrayList(), point);
+            navigator = new Navigator(map, tb.getOutputTrajectory().getMapFrameArrayList(), point, DEFAULT_MAX_VELOCITY, DEFAULT_ALGORITHM);
         } catch (IndexOutOfBoundsException oob) {
             // if a trajectory is out of bounds, try another
-            //tb = new TrajectoryBuilder(map, DEFAULT_STEPS_NUMBER, point, vector, frame, DEFAULT_DIR_CHANGE_PROBABILITY, DEFAULT_VELOCITY_CHANGE_PROBABILITY);
             init();
             if (++tries > MAX_TRIES) throw new IndexOutOfBoundsException("Nie udało się wygenerować poprawnej trajektorii.");
         }
@@ -346,7 +349,7 @@ public class Main extends Application {
                 // todo better
                 final int sliderRowCounter = GridPane.getRowIndex(stepsSlider);
                 optionNode.getChildren().remove(stepsSlider);
-                stepsSlider = new Slider(1, navigator.getResultTrajectory().getMapFrameArrayList().size(), 0);
+                stepsSlider = new Slider(1, tb.getOutputTrajectory().getMapFrameArrayList().size(), 0);
                 stepsSlider.setShowTickLabels(true);
                 stepsSlider.setShowTickMarks(true);
                 stepsSlider.valueProperty().addListener(new stepsSliderChangeListener());
@@ -398,12 +401,29 @@ public class Main extends Application {
         GridPane.setConstraints(noiseTF, 1, rowCounter);
         rowCounter++;
 
+        navigatorAlgorithmLbl = new Label("Generation method:");
+        ObservableList<String> navigatorAlgorithms = FXCollections.observableArrayList(
+                "Least squares difference", "Least linear difference", "Least value difference");
+        navigatorAlgorithmCB = new ComboBox<>(navigatorAlgorithms);
+        navigatorAlgorithmCB.setValue("Least squares difference");
+        GridPane.setConstraints(navigatorAlgorithmLbl, 0, rowCounter);
+        GridPane.setConstraints(navigatorAlgorithmCB, 1, rowCounter);
+        rowCounter++;
+
         // navigator button
         navigateBtn = new Button("Navigate");
         navigateBtn.setOnAction(event -> {
             try {
-                addNoise(tb.getOutputTrajectory(), Integer.parseInt(noiseTF.getText())); // add some noise
-                navigator = new Navigator(map, tb.getOutputTrajectory().getMapFrameArrayList(), point, Integer.parseInt(maxPotentialVelocityTF.getText()));
+                // choose the algorithm with which to compare frames
+                DiffAlgorithm mode = DEFAULT_ALGORITHM; // initialization
+                if (navigatorAlgorithmCB.getValue().equals("Least squares difference")) mode = DiffAlgorithm.SQ_DIFF;
+                else if (navigatorAlgorithmCB.getValue().equals("Least linear difference")) mode = DiffAlgorithm.LIN_DIFF;
+                else if (navigatorAlgorithmCB.getValue().equals("Least value difference")) mode = DiffAlgorithm.MAX_VAL_DIFF;
+
+                navigator = new Navigator(map, Trajectory.addNoise(tb.getOutputTrajectory(), Integer.parseInt(noiseTF.getText())),
+                        point, Integer.parseInt(maxPotentialVelocityTF.getText()), mode); // include noise
+                paintMap(map, visGC);
+                paintTrajectory(tb.getOutputTrajectory(), visGC, TRAJECTORY_COLOR);
                 paintTrajectory(navigator.getResultTrajectory(), visGC, NAVIGATOR_COLOR);
             } catch (NumberFormatException e) {
                 Alert alert = new Alert(Alert.AlertType.ERROR, "Wrong input");
@@ -422,7 +442,7 @@ public class Main extends Application {
         GridPane.setConstraints(navigatorDefaultValuesBtn, 1, rowCounter);
 
         optionNode.getChildren().addAll(maxPotentialVelocityLbl, maxPotentialVelocityTF, noiseLbl, noiseTF,
-                navigateBtn, navigatorDefaultValuesBtn);
+                navigatorAlgorithmLbl, navigatorAlgorithmCB, navigateBtn, navigatorDefaultValuesBtn);
         rowCounter++;
 
         navigatorResultSeparator = new Separator();
@@ -567,7 +587,7 @@ public class Main extends Application {
         }
         if (!found) throw new NumberFormatException();
         return resultList.stream().mapToDouble(d -> d).toArray(); // convert ArrayList<Double> to double[]
-                                                                             // see https://stackoverflow.com/a/27531513
+        // see https://stackoverflow.com/a/27531513
     }
 
     private String parseProbability(double[] probabilityArray) {
@@ -580,24 +600,26 @@ public class Main extends Application {
         return builder.toString();
     }
 
-    private void addNoise(Trajectory trajectory, int level) {
+    /*private void addNoise(Trajectory trajectory, int level) {
         if (level != 0) {
             for (MapFrame frame : trajectory.getMapFrameArrayList()) {
+                //System.out.println(frame);
                 for (int x = 0; x < frame.getSize(); x++) {
                     for (int y = 0; y < frame.getSize(); y++) {
                         try {
                             Random rand = new Random();
                             int newVal = frame.cellValue(x, y) + rand.ints(1, (-1)*level, level).findFirst().getAsInt(); // the noise may be positive or negative
-                            System.out.println(frame.cellValue(x, y) + "\t" + newVal + "\t" + (frame.cellValue(x, y) - newVal));
+                            //System.out.println(frame.cellValue(x, y) + "\t" + newVal + "\t" + (frame.cellValue(x, y) - newVal));
                             frame.setCellValue(x, y, newVal);
                         } catch (NumberFormatException e) {
                             continue; // if the value exceeds 0-255, just skip it
                         }
                     }
                 }
+                //System.out.println(frame + "\n");
             }
         }
-    }
+    }*/
 
     private class stepsSliderChangeListener implements ChangeListener<Number> {
         @Override

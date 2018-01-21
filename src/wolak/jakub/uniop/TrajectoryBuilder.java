@@ -47,7 +47,8 @@ public class TrajectoryBuilder {
                     MapFrame frameToAdd = new MapFrame(map, frame.getSize(), currentPoint);
                     // when the point turns, so should the frames; the map is oriented to the North by default
                     // important: when the point (and the camera) turns clockwise, "the world" in relation turns anticlockwise
-                    frameToAdd.turnAnticlockwise(DirVector.howManyTurns(new DirVector(Direction.NORTH), currentVector));
+                    if (step == 0) frameToAdd.turnAnticlockwise(DirVector.howManyTurns(new DirVector(Direction.NORTH), currentVector));
+                    else frameToAdd.turnAnticlockwise(DirVector.howManyTurns(new DirVector(Direction.NORTH), outputTrajectory.getVectorArrayList().get(step-1)));
                     outputTrajectory.add(frameToAdd);
                     currentPoint.move(currentVector);
                     break; // if everything is okay, break the loop

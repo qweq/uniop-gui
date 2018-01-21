@@ -28,6 +28,11 @@ public class MapFrame {
         this(map, size, centerPoint.getX(), centerPoint.getY());
     }
 
+    MapFrame(MapFrame frame) {
+        this.frameArray = frame.getFrameArray();
+        this.size = frame.getSize();
+    }
+
     public int getSize() {
         return size;
     }
@@ -55,14 +60,41 @@ public class MapFrame {
         }
 
         double sum = 0;
-
         for (int x = 0; x < f1.getFrameArray().length; x++) {
             for (int y = 0; y < f1.getFrameArray()[x].length; y++) {
                 sum += f1.getFrameArray()[x][y]*f1.getFrameArray()[x][y] - f2.getFrameArray()[x][y]*f2.getFrameArray()[x][y];
             }
         }
-
         return sum;
+    }
+
+    public static double linearDifference(MapFrame f1, MapFrame f2) {
+        if (f1.getFrameArray().length != f2.getFrameArray().length) { // MapFrames are square by definition
+            throw new IllegalArgumentException("Ramki muszą być tego samego rozmiaru");
+        }
+
+        double sum = 0;
+        for (int x = 0; x < f1.getFrameArray().length; x++) {
+            for (int y = 0; y < f1.getFrameArray()[x].length; y++) {
+                sum += f1.getFrameArray()[x][y] - f2.getFrameArray()[x][y];
+            }
+        }
+        return sum;
+    }
+
+    public static int maxValueDifference(MapFrame f1, MapFrame f2) {
+        if (f1.getFrameArray().length != f2.getFrameArray().length) { // MapFrames are square by definition
+            throw new IllegalArgumentException("Ramki muszą być tego samego rozmiaru");
+        }
+
+        int maxDiff = 0;
+        for (int x = 0; x < f1.getFrameArray().length; x++) {
+            for (int y = 0; y < f1.getFrameArray()[x].length; y++) {
+                int diff = f1.getFrameArray()[x][y] - f2.getFrameArray()[x][y];
+                if (diff > maxDiff) maxDiff = diff;
+            }
+        }
+        return maxDiff;
     }
 
     // turn the frame clockwise
