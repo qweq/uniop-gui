@@ -66,19 +66,19 @@ public class Trajectory {
             List<MapFrame> result = new ArrayList<>();
             for (MapFrame frame : trajectory.getMapFrameArrayList()) {
                 //System.out.println(frame);
+                MapFrame newFrame = new MapFrame(frame);
                 for (int x = 0; x < frame.getSize(); x++) {
                     for (int y = 0; y < frame.getSize(); y++) {
                         try {
                             Random rand = new Random();
-                            MapFrame newFrame = new MapFrame(frame);
                             int newVal = frame.cellValue(x, y) + rand.ints(1, (-1)*level, level).findFirst().getAsInt(); // the noise may be positive or negative
                             newFrame.setCellValue(x, y, newVal);
-                            result.add(newFrame);
                         } catch (NumberFormatException e) {
                             continue; // if the value exceeds 0-255, just skip it
                         }
                     }
                 }
+                result.add(newFrame);
                 //System.out.println(frame + "\n");
             }
             return result;
