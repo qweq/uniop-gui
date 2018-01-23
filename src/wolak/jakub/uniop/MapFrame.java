@@ -29,8 +29,18 @@ public class MapFrame {
     }
 
     MapFrame(MapFrame frame) {
-        this.frameArray = frame.getFrameArray();
         this.size = frame.getSize();
+        this.frameArray = new int[size][size];
+        for (int x = 0; x < size; x++) {
+            for (int y = 0; y < size; y++) {
+                this.frameArray[x][y] = frame.cellValue(x, y); // done this way so that no references to frame.frameArray are stored
+            }
+        }
+    }
+
+    MapFrame(int[][] frameArray, int size) {
+        this.frameArray = frameArray;
+        this.size = size;
     }
 
     public int getSize() {
@@ -54,6 +64,25 @@ public class MapFrame {
         frameArray[x][y] = newVal;
     }
 
+    public MapFrame getSubFrame(Point center, int size) {
+        int[][] subFrameMapArray = new int[size][size];
+        final int span = (size - 1)/2; // from the center to the edge
+        final int xLeft = center.getX() - span; // left edge coord
+        final int yUp = center.getY() - span;   // upper edge coord
+
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                try {
+                    subFrameMapArray[x][y] = this.frameArray[xLeft + x][yUp + y];
+                } catch (IndexOutOfBoundsException e) {
+                    throw new IndexOutOfBoundsException("Dla podanych współrzędnych środka oraz szerokości, podramka wychodzi poza ramkę");
+                }
+            }
+        }
+
+        return new MapFrame(subFrameMapArray, size);
+    }
+
     public static double squaresDifference(MapFrame f1, MapFrame f2) {
         if (f1.getFrameArray().length != f2.getFrameArray().length) { // MapFrames are square by definition
             throw new IllegalArgumentException("Ramki muszą być tego samego rozmiaru");
@@ -62,7 +91,7 @@ public class MapFrame {
         double sum = 0;
         for (int x = 0; x < f1.getFrameArray().length; x++) {
             for (int y = 0; y < f1.getFrameArray()[x].length; y++) {
-                sum += f1.getFrameArray()[x][y]*f1.getFrameArray()[x][y] - f2.getFrameArray()[x][y]*f2.getFrameArray()[x][y];
+                sum += Math.abs(f1.getFrameArray()[x][y])*Math.abs(f1.getFrameArray()[x][y]) - Math.abs(f2.getFrameArray()[x][y])*Math.abs(f2.getFrameArray()[x][y]);
             }
         }
         return sum;
@@ -76,7 +105,7 @@ public class MapFrame {
         double sum = 0;
         for (int x = 0; x < f1.getFrameArray().length; x++) {
             for (int y = 0; y < f1.getFrameArray()[x].length; y++) {
-                sum += f1.getFrameArray()[x][y] - f2.getFrameArray()[x][y];
+                sum += Math.abs(f1.getFrameArray()[x][y]) - Math.abs(f2.getFrameArray()[x][y]);
             }
         }
         return sum;
@@ -125,7 +154,6 @@ public class MapFrame {
             }
         }
     }
-
 
     @Override
     public String toString() {

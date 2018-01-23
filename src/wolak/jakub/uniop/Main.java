@@ -13,7 +13,7 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.*;
 import javafx.stage.*;
 import java.util.ArrayList;
-import java.util.Random;
+import java.util.List;
 import java.util.regex.*;
 
 public class Main extends Application {
@@ -57,8 +57,8 @@ public class Main extends Application {
     private TextField startPointYtf;
     private Label stepsNumberLbl;
     private TextField stepsNumberTF;
-    private Label frameSizeLbl;
-    private TextField frameSizeTF;
+    private Label subFrameSizeLbl;
+    private TextField subFrameSizeTF;
     private Label dirChangeProbLbl;
     private TextField dirChangeProbTF;
     private Label velChangeProbLbl;
@@ -74,6 +74,7 @@ public class Main extends Application {
     private TextField noiseTF;
     private Label navigatorAlgorithmLbl;
     private ComboBox<String> navigatorAlgorithmCB;
+    private CheckBox debugModeChk;
     private Button navigateBtn;
     private Button navigatorDefaultValuesBtn;
     private Separator navigatorResultSeparator;
@@ -89,7 +90,7 @@ public class Main extends Application {
     private RadioButton navigatorViewRB;
     private ToggleGroup resultViewToggleGroup;
     private Label iterationsLbl;
-    private Label squaresDifferenceLbl;
+    //private Label squaresDifferenceLbl;
 
 
     // default values
@@ -100,14 +101,16 @@ public class Main extends Application {
     // start point coordinates
     private static final int DEFAULT_START_POINT_X = 100;
     private static final int DEFAULT_START_POINT_Y = 100;
-    // frame size
-    private static final int DEFAULT_FRAME_SIZE = 5;
     // trajectory properties
     private static final int DEFAULT_STEPS_NUMBER = 150;
     private static final double DEFAULT_DIR_CHANGE_PROBABILITY = 0.08;
     private static final double[] DEFAULT_VELOCITY_CHANGE_PROBABILITY = {0.7, 0.2, 0.05, 0.05};
     private static final int DEFAULT_MAX_VELOCITY = 4;
     private static final DiffAlgorithm DEFAULT_ALGORITHM = DiffAlgorithm.SQ_DIFF;
+    // frame size
+    private static final int DEFAULT_SUBFRAME_SIZE = 5;
+    private static final int DEFAULT_FRAME_SPAN = (DEFAULT_SUBFRAME_SIZE-1)/2; // from the center to the edge
+    private static final int DEFAULT_FRAME_SIZE = DEFAULT_SUBFRAME_SIZE + 2*(DEFAULT_VELOCITY_CHANGE_PROBABILITY.length+DEFAULT_FRAME_SPAN+1);
     // max tries (for exception handling)
     private static final int MAX_TRIES = 10;
     // colors
@@ -116,13 +119,14 @@ public class Main extends Application {
     private static final Color NAVIGATOR_COLOR = Color.LIME;
     private static final Color NAVIGATOR_POINT_COLOR = Color.DARKGREEN;
 
+    private static int tries = 0;
+
     public static void main(String[] args) {
         launch(args);
     }
 
     @Override
     public void init() {
-        int tries = 0;
         // initialize with default values
         try {
             map = new Map(DEFAULT_MAP_XDIM, DEFAULT_MAP_YDIM, DEFAULT_MAP_MAX_INTENSITY_LEVEL);
@@ -130,11 +134,17 @@ public class Main extends Application {
             frame = new MapFrame(map, DEFAULT_FRAME_SIZE, point);
             vector = new DirVector();
             tb = new TrajectoryBuilder(map, DEFAULT_STEPS_NUMBER, point, vector, frame, DEFAULT_DIR_CHANGE_PROBABILITY, DEFAULT_VELOCITY_CHANGE_PROBABILITY);
-            navigator = new Navigator(map, tb.getOutputTrajectory().getMapFrameArrayList(), point, DEFAULT_MAX_VELOCITY, DEFAULT_ALGORITHM);
+            navigator = new Navigator(tb.getOutputTrajectory().getMapFrameArrayList(), point, vector, DEFAULT_MAX_VELOCITY,
+                    DEFAULT_SUBFRAME_SIZE, DEFAULT_ALGORITHM, false, tb.getOutputTrajectory());
         } catch (IndexOutOfBoundsException oob) {
             // if a trajectory is out of bounds, try another
+            ++tries;
+            System.out.println("try: " + tries + "; initializing again");
+            if (tries > MAX_TRIES) {
+                oob.printStackTrace();
+                throw new IndexOutOfBoundsException("Nie udało się wygenerować poprawnej trajektorii.");
+            }
             init();
-            if (++tries > MAX_TRIES) throw new IndexOutOfBoundsException("Nie udało się wygenerować poprawnej trajektorii.");
         }
         /*
         // console version legacy code
@@ -299,8 +309,8 @@ public class Main extends Application {
         startPointYtf.setPromptText("y");
         stepsNumberLbl = new Label("Number of steps:");
         stepsNumberTF = new TextField();
-        frameSizeLbl = new Label("Frame size:");
-        frameSizeTF = new TextField();
+        subFrameSizeLbl = new Label("Subframe size:");
+        subFrameSizeTF = new TextField();
         dirChangeProbLbl = new Label("Probability of a change\nof the direction:");
         dirChangeProbTF = new TextField();
         velChangeProbLbl = new Label("Probability of a change\nof the velocity:");
@@ -315,8 +325,8 @@ public class Main extends Application {
         GridPane.setConstraints(stepsNumberLbl, 0, rowCounter);
         GridPane.setConstraints(stepsNumberTF, 1, rowCounter);
         rowCounter++;
-        GridPane.setConstraints(frameSizeLbl, 0, rowCounter);
-        GridPane.setConstraints(frameSizeTF, 1, rowCounter);
+        GridPane.setConstraints(subFrameSizeLbl, 0, rowCounter);
+        GridPane.setConstraints(subFrameSizeTF, 1, rowCounter);
         rowCounter++;
         GridPane.setConstraints(dirChangeProbLbl, 0, rowCounter);
         GridPane.setConstraints(dirChangeProbTF, 1, rowCounter);
@@ -326,7 +336,7 @@ public class Main extends Application {
         GridPane.setConstraints(velChangeProbInfoLbl, 2, rowCounter, 1, 2);
         rowCounter++;
         optionNode.getChildren().addAll(startPointLbl, startPointXtf, startPointYtf,
-                stepsNumberLbl, stepsNumberTF, frameSizeLbl, frameSizeTF, dirChangeProbLbl, dirChangeProbTF,
+                stepsNumberLbl, stepsNumberTF, subFrameSizeLbl, subFrameSizeTF, dirChangeProbLbl, dirChangeProbTF,
                 velChangeProbLbl, velChangeProbTF, velChangeProbInfoLbl);
 
         // generate trajectory button
@@ -334,7 +344,11 @@ public class Main extends Application {
         generateTrajectoryBtn.setOnAction(event -> {
             try {
                 point = new Point(Integer.parseInt(startPointXtf.getText()), Integer.parseInt(startPointYtf.getText()));
-                frame = new MapFrame(map, Integer.parseInt(frameSizeTF.getText()), point.getX(), point.getY());
+
+                // frame size = subframe size + maximal velocity * 2 (because we can go either way) + frame span * 2
+                int frameSize = Integer.parseInt(subFrameSizeTF.getText()) + 2*(parseProbability(velChangeProbTF.getText()).length + (Integer.parseInt(subFrameSizeTF.getText())-1)/2 + 1);
+                frame = new MapFrame(map, frameSize, point.getX(), point.getY());
+
                 parseProbability(velChangeProbTF.getText());
                 tb = new TrajectoryBuilder(map, Integer.parseInt(stepsNumberTF.getText()), point,
                         vector, frame, Double.parseDouble(dirChangeProbTF.getText()), parseProbability(velChangeProbTF.getText()));
@@ -343,8 +357,8 @@ public class Main extends Application {
                 visSP.setHvalue((double)point.getX()/(double)map.getXDim());
                 visSP.setVvalue((double)point.getY()/(double)map.getYDim());
                 frameViewGC.clearRect(0, 0, frameCanvas.getWidth(), frameCanvas.getHeight());
-                frameCanvas.setWidth(framePixelSize*frame.getSize());
-                frameCanvas.setHeight(framePixelSize*frame.getSize());
+                frameCanvas.setWidth(framePixelSize*frameSize);
+                frameCanvas.setHeight(framePixelSize*frameSize);
 
                 // todo better
                 final int sliderRowCounter = GridPane.getRowIndex(stepsSlider);
@@ -376,7 +390,7 @@ public class Main extends Application {
             startPointYtf.setText(String.valueOf(DEFAULT_START_POINT_Y));
             stepsNumberTF.setText(String.valueOf(DEFAULT_STEPS_NUMBER));
             dirChangeProbTF.setText(String.valueOf(DEFAULT_DIR_CHANGE_PROBABILITY));
-            frameSizeTF.setText(String.valueOf(DEFAULT_FRAME_SIZE));
+            subFrameSizeTF.setText(String.valueOf(DEFAULT_SUBFRAME_SIZE));
             velChangeProbTF.setText(parseProbability(DEFAULT_VELOCITY_CHANGE_PROBABILITY));
         });
         GridPane.setConstraints(trajectoryDefaultValuesBtn, 1, rowCounter);
@@ -410,6 +424,11 @@ public class Main extends Application {
         GridPane.setConstraints(navigatorAlgorithmCB, 1, rowCounter);
         rowCounter++;
 
+        // debug mode
+        debugModeChk = new CheckBox("Debug mode");
+        debugModeChk.setSelected(false);
+        GridPane.setConstraints(debugModeChk, 2, rowCounter);
+
         // navigator button
         navigateBtn = new Button("Navigate");
         navigateBtn.setOnAction(event -> {
@@ -420,8 +439,11 @@ public class Main extends Application {
                 else if (navigatorAlgorithmCB.getValue().equals("Least linear difference")) mode = DiffAlgorithm.LIN_DIFF;
                 else if (navigatorAlgorithmCB.getValue().equals("Least value difference")) mode = DiffAlgorithm.MAX_VAL_DIFF;
 
-                navigator = new Navigator(map, Trajectory.addNoise(tb.getOutputTrajectory(), Integer.parseInt(noiseTF.getText())),
-                        point, Integer.parseInt(maxPotentialVelocityTF.getText()), mode); // include noise
+                List<MapFrame> framesWithNoise = Trajectory.addNoise(tb.getOutputTrajectory(), Integer.parseInt(noiseTF.getText())); // include noise
+
+                navigator = new Navigator(framesWithNoise, point, tb.getOutputTrajectory().getVectorArrayList().get(0),
+                        Integer.parseInt(maxPotentialVelocityTF.getText()), Integer.parseInt(subFrameSizeTF.getText()),
+                        mode, debugModeChk.isSelected(), tb.getOutputTrajectory());
                 paintMap(map, visGC);
                 paintTrajectory(tb.getOutputTrajectory(), visGC, TRAJECTORY_COLOR);
                 paintTrajectory(navigator.getResultTrajectory(), visGC, NAVIGATOR_COLOR);
@@ -442,7 +464,7 @@ public class Main extends Application {
         GridPane.setConstraints(navigatorDefaultValuesBtn, 1, rowCounter);
 
         optionNode.getChildren().addAll(maxPotentialVelocityLbl, maxPotentialVelocityTF, noiseLbl, noiseTF,
-                navigatorAlgorithmLbl, navigatorAlgorithmCB, navigateBtn, navigatorDefaultValuesBtn);
+                navigatorAlgorithmLbl, navigatorAlgorithmCB, navigateBtn, navigatorDefaultValuesBtn, debugModeChk);
         rowCounter++;
 
         navigatorResultSeparator = new Separator();
@@ -503,9 +525,9 @@ public class Main extends Application {
         resultNode.getChildren().add(iterationsLbl);
 
         // frame values
-        squaresDifferenceLbl = new Label("Least squares method\nsquares difference: ");
+        /*squaresDifferenceLbl = new Label("Least squares method\nsquares difference: ");
         GridPane.setConstraints(squaresDifferenceLbl, 1, 1);
-        resultNode.getChildren().addAll(squaresDifferenceLbl);
+        resultNode.getChildren().addAll(squaresDifferenceLbl);*/
 
         /*
         // debug
@@ -627,9 +649,9 @@ public class Main extends Application {
             updateFrameView(newValue.intValue()-1); // -1 due to zero-indexing
             stepsSliderLbl.setText("Trajectory step: " + String.valueOf(newValue.intValue()));
             iterationsLbl.setText("Iterations: " + String.valueOf(navigator.getIterations(newValue.intValue()-1)));
-            squaresDifferenceLbl.setText("Least squares method\nsquares difference: "
+            /*squaresDifferenceLbl.setText("Least squares method\nsquares difference: "
                     + String.valueOf((int)MapFrame.squaresDifference(tb.getOutputTrajectory().getMapFrameArrayList().get(newValue.intValue()-1),
-                    navigator.getResultTrajectory().getMapFrameArrayList().get(newValue.intValue()-1))));
+                    navigator.getResultTrajectory().getMapFrameArrayList().get(newValue.intValue()-1))));*/
         }
     }
 }

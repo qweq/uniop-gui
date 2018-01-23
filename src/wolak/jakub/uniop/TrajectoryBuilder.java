@@ -51,6 +51,7 @@ public class TrajectoryBuilder {
                     else frameToAdd.turnAnticlockwise(DirVector.howManyTurns(new DirVector(Direction.NORTH), outputTrajectory.getVectorArrayList().get(step-1)));
                     outputTrajectory.add(frameToAdd);
                     currentPoint.move(currentVector);
+                    //System.out.println(currentVector + " (TB)");
                     break; // if everything is okay, break the loop
                 } else {
                     System.out.println("step: " + step + ", old vector: " + currentVector);

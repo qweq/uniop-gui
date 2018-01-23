@@ -64,11 +64,12 @@ public class Trajectory {
     public static List<MapFrame> addNoise(Trajectory trajectory, int level) {
         if (level != 0) {
             List<MapFrame> result = new ArrayList<>();
-            for (MapFrame frame : trajectory.getMapFrameArrayList()) {
-                //System.out.println(frame);
+            //for (MapFrame frame : trajectory.getMapFrameArrayList()) {
+            for (int i = 0; i < trajectory.getMapFrameArrayList().size(); i++) {
+                MapFrame frame = trajectory.getMapFrameArrayList().get(i);
                 MapFrame newFrame = new MapFrame(frame);
-                for (int x = 0; x < frame.getSize(); x++) {
-                    for (int y = 0; y < frame.getSize(); y++) {
+                for (int x = 0; x < newFrame.getSize(); x++) {
+                    for (int y = 0; y < newFrame.getSize(); y++) {
                         try {
                             Random rand = new Random();
                             int newVal = frame.cellValue(x, y) + rand.ints(1, (-1)*level, level).findFirst().getAsInt(); // the noise may be positive or negative

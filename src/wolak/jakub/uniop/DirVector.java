@@ -62,6 +62,10 @@ public class DirVector {
         }
     }
 
+    public void turnClockwise(int times) {
+        for (int i = 0; i < times; i++) turnClockwise();
+    }
+
     public Direction getDir() {
         return dir;
     }

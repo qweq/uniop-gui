@@ -41,6 +41,17 @@ public class Map {
         this(xDim, yDim, maxIntensityLevel, 0);
     }
 
+    Map(MapFrame frame) {
+        this.xDim = frame.getSize();
+        this.yDim = frame.getSize();
+        this.mapArray = frame.getFrameArray();
+        this.maxIntensityLevel = 255;
+        // notice: this is a hack and should be done better
+        // this is here because Navigator should not take the whole map into consideration, only the actual frames taken
+        // by the point; in fact I think Map/MapFrame structure should be redone; perhaps MapFrame should extend Map
+        // deadline's too soon though
+    }
+
     public enum Mode {
         RANDOM, OPENSIMPLEX;
     }
@@ -90,11 +101,11 @@ public class Map {
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder();
-        for (int x = 0; x < xDim; x++) {
-            for (int y = 0; y < yDim; y++) {
-                builder.append(mapArray[x][y] + "\t");
+        for (int y = 0; y < xDim; y++) {
+            for (int x = 0; x < yDim; x++) {
+                builder.append(mapArray[x][y] + "\t"); // [x] comes first so we want [0][0] \t [1][0] \t [2][0] \t etc...
             }
-            builder.append("\n");
+            builder.append("\n"); // [y] comes second so we want ...[n-1][0] \t [n][0] \n [0][1] etc...
         }
         return builder.toString();
     }
